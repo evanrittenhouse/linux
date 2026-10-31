@@ -21,6 +21,8 @@ int dockchannel_recv(struct dockchannel *dockchannel, void *buf, size_t count);
 int dockchannel_await(struct dockchannel *dockchannel,
 		      void (*callback)(void *cookie, size_t avail),
 		      void *cookie, size_t count);
+int dockchannel_enable_rx_irq_wake(struct dockchannel *dockchannel);
+int dockchannel_disable_rx_irq_wake(struct dockchannel *dockchannel);
 
 #endif
 #endif

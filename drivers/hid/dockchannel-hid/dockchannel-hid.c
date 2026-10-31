@@ -13,6 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/hid.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/soc/apple/dockchannel.h>
 #include <linux/string.h>
@@ -668,10 +669,12 @@ static void dchid_create_interface_work(struct work_struct *ws)
 	hid->type = HID_TYPE_OTHER;
 	if (!strcmp(iface->name, "multi-touch")) {
 		hid->type = HID_TYPE_SPI_MOUSE;
+		device_init_wakeup(&hid->dev, true);
 	} else if (!strcmp(iface->name, "keyboard")) {
 		u32 country_code = 0;
 
 		hid->type = HID_TYPE_SPI_KEYBOARD;
+		device_init_wakeup(&hid->dev, true);
 
 		/*
 		 * We have to get the country code from the device tree, since the
@@ -1180,6 +1183,8 @@ static int dockchannel_hid_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
+	platform_set_drvdata(pdev, dchid);
+
 	dev_info(dchid->dev, "Initialized, awaiting packets\n");
 	dockchannel_await(dchid->dc, dchid_handle_packet, dchid, sizeof(struct dchid_hdr));
 
@@ -1190,6 +1195,21 @@ static void dockchannel_hid_remove(struct platform_device *pdev)
 {
 	BUG_ON(1);
 }
+
+static int dockchannel_hid_suspend(struct device *dev)
+{
+	struct dockchannel_hid *dchid = dev_get_drvdata(dev);
+	return dockchannel_enable_rx_irq_wake(dchid->dc);
+}
+
+static int dockchannel_hid_resume(struct device *dev)
+{
+	struct dockchannel_hid *dchid = dev_get_drvdata(dev);
+	return dockchannel_disable_rx_irq_wake(dchid->dc);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(dockchannel_hid_pm_ops, dockchannel_hid_suspend,
+		dockchannel_hid_resume);
 
 static const struct of_device_id dockchannel_hid_of_match[] = {
 	{ .compatible = "apple,dockchannel-hid" },
@@ -1202,6 +1222,7 @@ static struct platform_driver dockchannel_hid_driver = {
 	.driver = {
 		.name = "dockchannel-hid",
 		.of_match_table = dockchannel_hid_of_match,
+		.pm = &dockchannel_hid_pm_ops,
 	},
 	.probe = dockchannel_hid_probe,
 	.remove = dockchannel_hid_remove,

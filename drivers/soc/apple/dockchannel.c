@@ -313,6 +313,7 @@ static const struct irq_chip dockchannel_irqchip = {
 	.irq_ack = dockchannel_irq_ack,
 	.irq_mask = dockchannel_irq_mask,
 	.irq_unmask = dockchannel_irq_unmask,
+	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int dockchannel_irq_domain_map(struct irq_domain *d, unsigned int virq,
@@ -384,6 +385,26 @@ static void dockchannel_remove(struct platform_device *pdev)
 	writel_relaxed(0, dcc->irq_base + IRQ_MASK);
 	writel_relaxed(~0, dcc->irq_base + IRQ_FLAG);
 }
+
+int dockchannel_enable_rx_irq_wake(struct dockchannel *dc)
+{
+	if (dc->rx_irq > 0) {
+		return enable_irq_wake(dc->rx_irq);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(dockchannel_enable_rx_irq_wake);
+
+int dockchannel_disable_rx_irq_wake(struct dockchannel *dc)
+{
+	if (dc->rx_irq > 0) {
+		return disable_irq_wake(dc->rx_irq);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(dockchannel_disable_rx_irq_wake);
 
 static const struct of_device_id dockchannel_of_match[] = {
 	{ .compatible = "apple,dockchannel" },
